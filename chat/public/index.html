@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Título da Página</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div id="login">
+        <input type="text" id="username" placeholder="Digite seu usuário">
+        <button id="loginBtn">Entrar</button>
+    </div>
+    
+    <form id="chat" style="display:none;">
+        <input type="hidden" id="messageId" value="">
+        <div class="messages"></div>
+        <input type="text" name="message" placeholder="Digite sua mensagem">
+        <button type="submit">Enviar</button>
+    </form>
+
+    <script>
+        var socket = io('http://localhost:3000');
+        var username = '';
+
+        // Função para realizar o login
+        $('#loginBtn').click(function() {
+            username = $('#username').val();
+            if (username.length) {
+                $('#login').hide();
+                $('#chat').show();
+                socket.emit('getMessages');
+            }
+        });
+
+        // Carregar mensagens existentes ao carregar a página
+        $(document).ready(function() {
+            socket.emit('getMessages');
+        });
+
+        // Receber mensagens do servidor e renderizar na página
+        socket.on('messages', function(data) {
+            $('.messages').empty();
+            data.forEach(function(message) {
+                let messageClass = message.author === username ? 'my-message' : 'other-message';
+                $('.messages').append(`
+                    <div class="message ${messageClass}" data-id="${message.id}">
+                        <strong>${message.author}</strong>: ${message.message}
+                        <div class="dropdown">
+                            <button class="dropbtn">⋮</button>
+                            <div class="dropdown-content">
+                                <button class="edit-btn" data-id="${message.id}">Editar</button>
+                                <button class="delete-btn" data-id="${message.id}">Excluir</button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            });
+        });
+
+        // Enviar mensagem (ou editar, se houver ID definido)
+        $('#chat').submit(function(event) {
+            event.preventDefault();
+            var messageId = $('#messageId').val();
+            var message = $('input[name=message]').val();
+            
+            if (message.length) {
+                if (messageId) {
+                    // Se houver um ID definido, editar a mensagem
+                    socket.emit('editMessage', { id: messageId, author: username, message: message });
+                } else {
+                    // Caso contrário, enviar uma nova mensagem
+                    socket.emit('sendMessage', { author: username, message: message });
+                }
+                // Limpar o campo de mensagem após o envio
+                $('input[name=message]').val('');
+                $('#messageId').val('');
+            }
+        });
+
+        // Editar mensagem ao clicar no botão "Editar"
+        $(document).on('click', '.edit-btn', function() {
+            var messageId = $(this).attr('data-id');
+            var messageText = $(this).closest('.message').find('strong').text() + ': ' + $(this).closest('.message').contents().filter(function() {
+                return this.nodeType == 3;
+            }).text().trim();
+            $('input[name=message]').val(messageText);
+            $('#messageId').val(messageId);
+        });
+
+        // Excluir mensagem ao clicar no botão "Excluir"
+        $(document).on('click', '.delete-btn', function() {
+            var messageId = $(this).attr('data-id');
+            socket.emit('deleteMessage', messageId);
+        });
+
+        // Receber mensagem editada do servidor e atualizar na página
+        socket.on('messageEdited', function(data) {
+            var $message = $(`.message[data-id="${data.id}"]`);
+            $message.find('strong').text(data.author);
+            $message.find('.edit-btn').closest('.message').contents().filter(function() {
+                return this.nodeType == 3;
+            }).replaceWith(`: ${data.message}`);
+        });
+
+        // Receber mensagem excluída do servidor e remover da página
+        socket.on('messageDeleted', function(id) {
+            $(`.message[data-id="${id}"]`).remove();
+        });
+
+        // Receber mensagem enviada do servidor e adicionar à página
+        socket.on('messageSent', function(message) {
+            let messageClass = message.author === username ? 'my-message' : 'other-message';
+            $('.messages').append(`
+                <div class="message ${messageClass}" data-id="${message.id}">
+                    <strong>${message.author}</strong>: ${message.message}
+                    <div class="dropdown">
+                        <button class="dropbtn">⋮</button>
+                        <div class="dropdown-content">
+                            <button class="edit-btn" data-id="${message.id}">Editar</button>
+                            <button class="delete-btn" data-id="${message.id}">Excluir</button>
+                        </div>
+                        </div>
+                </div>
+            `);
+        });
+    </script>
+</body>
+
+</html>

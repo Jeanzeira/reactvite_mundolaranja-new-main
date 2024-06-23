@@ -1,0 +1,73 @@
+-- Criação do banco de dados
+CREATE DATABASE nba_app;
+\c nba_app;
+
+-- Criação da tabela de usuários
+CREATE TABLE usuarios (
+    id SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    senha VARCHAR(100) NOT NULL
+);
+
+-- Criação da tabela de times
+CREATE TABLE times (
+    id SERIAL PRIMARY KEY,
+    nome_time VARCHAR(100) NOT NULL,
+    cidade VARCHAR(100) NOT NULL,
+    numero_titulos INTEGER,
+    conferencia VARCHAR(50),
+    divisao VARCHAR(50)
+);
+
+-- Criação da tabela de jogadores
+CREATE TABLE jogadores (
+    id SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    data_nascimento DATE NOT NULL,
+    time_atual INTEGER REFERENCES times(id),
+    cidade_nascimento VARCHAR(100) NOT NULL,
+    universidade VARCHAR(100),
+    resumo TEXT
+);
+
+
+-- Criação da tabela de notícias
+CREATE TABLE noticias (
+    id SERIAL PRIMARY KEY,
+    titulo VARCHAR(200) NOT NULL,
+    texto TEXT NOT NULL,
+    jogador_id INTEGER REFERENCES jogadores(id),
+    time_id INTEGER REFERENCES times(id)
+);
+
+-- Criação da tabela de comentários
+CREATE TABLE comentarios (
+    id SERIAL PRIMARY KEY,
+    texto TEXT NOT NULL,
+    noticia_id INTEGER REFERENCES noticias(id),
+    usuario_id INTEGER REFERENCES usuarios(id)
+);
+
+CREATE TABLE messages (
+    id SERIAL PRIMARY KEY,
+    author VARCHAR(100) NOT NULL,
+    message TEXT NOT NULL
+);
+
+-- Inserção de dados de exemplo para testes
+INSERT INTO times (nome_time, cidade, numero_titulos, conferencia, divisao) VALUES
+('Lakers', 'Los Angeles', 17, 'Western', 'Pacific'),
+('Celtics', 'Boston', 17, 'Eastern', 'Atlantic');
+
+INSERT INTO jogadores (nome, data_nascimento, time_atual, cidade_nascimento, universidade, resumo) VALUES
+('LeBron James', '1984-12-30', 1, 'Akron, OH', 'St. Vincent-St. Mary', 'Considerado um dos melhores jogadores de todos os tempos.');
+
+INSERT INTO usuarios (nome, email, senha) VALUES
+('John Doe', 'john.doe@example.com', 'password123');
+
+INSERT INTO noticias (titulo, texto, jogador_id, time_id) VALUES
+('LeBron James lidera Lakers em vitória', 'LeBron James teve uma performance incrível na vitória dos Lakers sobre os Celtics...', 1, 1);
+
+INSERT INTO comentarios (texto, noticia_id, usuario_id) VALUES
+('Ótima notícia!', 1, 1);
