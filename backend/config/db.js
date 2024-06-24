@@ -1,7 +1,5 @@
-// backend/config/db.js
-
 const { Pool } = require('pg');
-//
+
 const pool = new Pool({
   user: 'postgres',
   host: 'localhost',
@@ -10,12 +8,12 @@ const pool = new Pool({
   port: 5440,
 });
 
-pool.connect((err) => {
+pool.connect((err, client, release) => {
   if (err) {
-    console.error('Erro ao conectar no banco de dados', err);
-  } else {
-    console.log('Conectado ao banco de dados');
+    return console.error('Erro ao conectar ao banco de dados', err.stack);
   }
+  console.log('Conexão com o banco de dados estabelecida');
+  release();
 });
 
 module.exports = pool;
