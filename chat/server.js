@@ -57,19 +57,36 @@ io.on('connection', socket => {
     socket.on('editMessage', async data => {
         const { id, author, message } = data;
         try {
-            const result = await pool.query('UPDATE messages SET author = $1, message = $2 WHERE id = $3 RETURNING *', [author, message, id]);
-            const updatedMessage = result.rows[0];
-            io.emit('messageEdited', updatedMessage); // Emite a mensagem editada para todos os clientes
+            const result = await pool.query('SELECT author FROM messages WHERE id = $1', [id]);
+            const messageRecord = result.rows[0];
+
+            if (messageRecord && messageRecord.author === author) {
+                const updatedResult = await pool.query('UPDATE messages SET message = $1 WHERE id = $2 RETURNING *', [message, id]);
+                const updatedMessage = updatedResult.rows[0];
+                io.emit('messageEdited', updatedMessage); // Emite a mensagem editada para todos os clientes
+                console.log(`Mensagem ${id} editada por ${author}`);
+            } else {
+                console.log(`Tentativa de edição não autorizada por ${author} para a mensagem ${id}`);
+            }
         } catch (error) {
             console.error('Erro ao editar mensagem no banco de dados:', error);
         }
     });
 
     // Evento para excluir mensagem do banco de dados
-    socket.on('deleteMessage', async id => {
+    socket.on('deleteMessage', async data => {
+        const { id, author } = data;
         try {
-            await pool.query('DELETE FROM messages WHERE id = $1', [id]);
-            io.emit('messageDeleted', id); // Emite o ID da mensagem excluída para todos os clientes
+            const result = await pool.query('SELECT author FROM messages WHERE id = $1', [id]);
+            const message = result.rows[0];
+
+            if (message && message.author === author) {
+                await pool.query('DELETE FROM messages WHERE id = $1', [id]);
+                io.emit('messageDeleted', id); // Emite o ID da mensagem excluída para todos os clientes
+                console.log(`Mensagem ${id} excluída por ${author}`);
+            } else {
+                console.log(`Tentativa de exclusão não autorizada por ${author} para a mensagem ${id}`);
+            }
         } catch (error) {
             console.error('Erro ao excluir mensagem do banco de dados:', error);
         }

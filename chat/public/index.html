@@ -5,10 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Título da Página</title>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
-
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -17,7 +15,7 @@
         <input type="text" id="username" placeholder="Digite seu usuário">
         <button id="loginBtn">Entrar</button>
     </div>
-    
+
     <form id="chat" style="display:none;">
         <input type="hidden" id="messageId" value="">
         <div class="messages"></div>
@@ -48,28 +46,35 @@
         socket.on('messages', function(data) {
             $('.messages').empty();
             data.forEach(function(message) {
-                let messageClass = message.author === username ? 'my-message' : 'other-message';
-                $('.messages').append(`
-                    <div class="message ${messageClass}" data-id="${message.id}">
-                        <strong>${message.author}</strong>: ${message.message}
-                        <div class="dropdown">
-                            <button class="dropbtn">⋮</button>
-                            <div class="dropdown-content">
-                                <button class="edit-btn" data-id="${message.id}">Editar</button>
-                                <button class="delete-btn" data-id="${message.id}">Excluir</button>
-                            </div>
-                        </div>
-                    </div>
-                `);
+                appendMessage(message);
             });
         });
+
+        // Função para adicionar uma mensagem à página
+        function appendMessage(message) {
+            let messageClass = message.author === username ? 'my-message' : 'other-message';
+            let editButton = message.author === username ? `<button class="edit-btn" data-id="${message.id}">Editar</button>` : '';
+            let deleteButton = message.author === username ? `<button class="delete-btn" data-id="${message.id}">Excluir</button>` : '';
+            $('.messages').append(`
+                <div class="message ${messageClass}" data-id="${message.id}">
+                    <strong>${message.author}</strong>: ${message.message}
+                    <div class="dropdown">
+                        <button class="dropbtn">⋮</button>
+                        <div class="dropdown-content">
+                            ${editButton}
+                            ${deleteButton}
+                        </div>
+                    </div>
+                </div>
+            `);
+        }
 
         // Enviar mensagem (ou editar, se houver ID definido)
         $('#chat').submit(function(event) {
             event.preventDefault();
             var messageId = $('#messageId').val();
             var message = $('input[name=message]').val();
-            
+
             if (message.length) {
                 if (messageId) {
                     // Se houver um ID definido, editar a mensagem
@@ -87,9 +92,9 @@
         // Editar mensagem ao clicar no botão "Editar"
         $(document).on('click', '.edit-btn', function() {
             var messageId = $(this).attr('data-id');
-            var messageText = $(this).closest('.message').find('strong').text() + ': ' + $(this).closest('.message').contents().filter(function() {
+            var messageText = $(this).closest('.message').contents().filter(function() {
                 return this.nodeType == 3;
-            }).text().trim();
+            }).text().split(': ')[1].trim();
             $('input[name=message]').val(messageText);
             $('#messageId').val(messageId);
         });
@@ -97,14 +102,14 @@
         // Excluir mensagem ao clicar no botão "Excluir"
         $(document).on('click', '.delete-btn', function() {
             var messageId = $(this).attr('data-id');
-            socket.emit('deleteMessage', messageId);
+            socket.emit('deleteMessage', { id: messageId, author: username });
         });
 
         // Receber mensagem editada do servidor e atualizar na página
         socket.on('messageEdited', function(data) {
             var $message = $(`.message[data-id="${data.id}"]`);
             $message.find('strong').text(data.author);
-            $message.find('.edit-btn').closest('.message').contents().filter(function() {
+            $message.contents().filter(function() {
                 return this.nodeType == 3;
             }).replaceWith(`: ${data.message}`);
         });
@@ -116,21 +121,8 @@
 
         // Receber mensagem enviada do servidor e adicionar à página
         socket.on('messageSent', function(message) {
-            let messageClass = message.author === username ? 'my-message' : 'other-message';
-            $('.messages').append(`
-                <div class="message ${messageClass}" data-id="${message.id}">
-                    <strong>${message.author}</strong>: ${message.message}
-                    <div class="dropdown">
-                        <button class="dropbtn">⋮</button>
-                        <div class="dropdown-content">
-                            <button class="edit-btn" data-id="${message.id}">Editar</button>
-                            <button class="delete-btn" data-id="${message.id}">Excluir</button>
-                        </div>
-                        </div>
-                </div>
-            `);
+            appendMessage(message);
         });
     </script>
 </body>
-
 </html>
